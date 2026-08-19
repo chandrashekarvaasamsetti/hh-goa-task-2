@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="te">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>HH GOA Telugu Assistant</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: "Noto Sans Telugu", "Nirmala UI", Arial, sans-serif;
+            background: #f4f7fb;
+            color: #1f2937;
+        }
+
+        .header {
+            background: #1f4e79;
+            color: white;
+            padding: 28px 20px;
+            text-align: center;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 34px;
+        }
+
+        .header p {
+            margin: 8px 0 0;
+            font-size: 17px;
+            opacity: 0.9;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 35px auto;
+            padding: 0 20px;
+        }
+
+        .search-box {
+            background: white;
+            padding: 28px;
+            border-radius: 16px;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08);
+        }
+
+        textarea {
+            width: 100%;
+            min-height: 130px;
+            resize: vertical;
+            padding: 18px;
+            border: 1px solid #cbd5e1;
+            border-radius: 12px;
+            font-size: 20px;
+            font-family: inherit;
+            outline: none;
+        }
+
+        textarea:focus {
+            border-color: #1f4e79;
+        }
+
+        .button-row {
+            display: flex;
+            gap: 12px;
+            margin-top: 18px;
+        }
+
+        button {
+            flex: 1;
+            padding: 15px;
+            border: none;
+            border-radius: 10px;
+            background: #1f4e79;
+            color: white;
+            font-size: 19px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #163a5c;
+        }
+
+        button:disabled {
+            background: #94a3b8;
+            cursor: not-allowed;
+        }
+
+        #micButton.recording {
+            background: #dc2626;
+        }
+
+        .status {
+            text-align: center;
+            margin: 20px 0;
+            font-size: 16px;
+        }
+
+        .error {
+            color: #dc2626;
+        }
+
+        .loading {
+            color: #1f4e79;
+        }
+
+        .success {
+            color: #15803d;
+        }
+
+        .results {
+            margin-top: 25px;
+        }
+
+        .answer-card {
+            background: white;
+            margin-bottom: 20px;
+            padding: 22px;
+            border-radius: 14px;
+            border-left: 5px solid #15803d;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.06);
+        }
+
+        .answer-title {
+            font-size: 22px;
+            font-weight: bold;
+            margin-bottom: 12px;
+            color: #15803d;
+        }
+
+        .answer-text {
+            font-size: 20px;
+            line-height: 1.8;
+        }
+
+        .results-title {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+
+        .result-card {
+            background: white;
+            margin-bottom: 18px;
+            padding: 22px;
+            border-radius: 14px;
+            border-left: 5px solid #1f4e79;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.06);
+        }
+
+        .result-number {
+            font-weight: bold;
+            color: #1f4e79;
+            margin-bottom: 12px;
+            font-size: 17px;
+        }
+
+        .result-text {
+            font-size: 19px;
+            line-height: 1.8;
+        }
+
+        .empty {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            text-align: center;
+            color: #64748b;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 25px;
+            color: #64748b;
+            font-size: 14px;
+        }
+
+        @media (max-width: 600px) {
+
+            .header h1 {
+                font-size: 27px;
+            }
+
+            .search-box {
+                padding: 18px;
+            }
+
+            textarea {
+                font-size: 18px;
+            }
+
+            .result-text,
+            .answer-text {
+                font-size: 17px;
+            }
+
+            .button-row {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="header">
+        <h1>HH GOA Telugu Assistant</h1>
+        <p>Telugu Voice & Knowledge Retrieval System</p>
+    </div>
+
+    <div class="container">
+
+        <div class="search-box">
+
+            <textarea
+                id="query"
+                placeholder="మీ ప్రశ్నను తెలుగులో నమోదు చేయండి..."
+            ></textarea>
+
+            <div class="button-row">
+
+                <button id="micButton" onclick="toggleRecording()">
+                    🎤 Speak
+                </button>
+
+                <button id="searchButton" onclick="searchData()">
+                    Search
+                </button>
+
+            </div>
+
+        </div>
+
+        <div id="status" class="status"></div>
+
+        <div id="results" class="results"></div>
+
+    </div>
+
+    <div class="footer">
+        HH GOA Task-2 | Telugu Voice & Knowledge Retrieval System
+    </div>
+
+
+    <script>
+
+        let mediaRecorder = null;
+        let audioChunks = [];
+        let isRecording = false;
+
+
+        // -----------------------------------------
+        // VOICE RECORDING
+        // -----------------------------------------
+
+        async function toggleRecording() {
+
+            const micButton = document.getElementById("micButton");
+            const status = document.getElementById("status");
+
+            if (isRecording) {
+                stopRecording();
+                return;
+            }
+
+            try {
+
+                const stream =
+                    await navigator.mediaDevices.getUserMedia({
+                        audio: true
+                    });
+
+                audioChunks = [];
+
+                mediaRecorder = new MediaRecorder(stream);
+
+                mediaRecorder.ondataavailable = function(event) {
+
+                    if (event.data.size > 0) {
+                        audioChunks.push(event.data);
+                    }
+
+                };
+
+                mediaRecorder.onstop = async function() {
+
+                    stream.getTracks().forEach(
+                        track => track.stop()
+                    );
+
+                    const audioBlob = new Blob(
+                        audioChunks,
+                        {
+                            type: mediaRecorder.mimeType
+                        }
+                    );
+
+                    await sendAudioToServer(audioBlob);
+                };
+
+                mediaRecorder.start();
+
+                isRecording = true;
+
+                micButton.innerText = "⏹ Stop Recording";
+                micButton.classList.add("recording");
+
+                status.innerText =
+                    "🎤 మాట్లాడండి... పూర్తయిన తర్వాత Stop Recording నొక్కండి.";
+
+                status.className = "status loading";
+
+            } catch (error) {
+
+                console.error(error);
+
+                status.innerText =
+                    "మైక్రోఫోన్‌ను యాక్సెస్ చేయలేకపోయాము.";
+
+                status.className = "status error";
+            }
+        }
+
+
+        function stopRecording() {
+
+            if (
+                mediaRecorder &&
+                mediaRecorder.state !== "inactive"
+            ) {
+
+                mediaRecorder.stop();
+
+                isRecording = false;
+
+                const micButton =
+                    document.getElementById("micButton");
+
+                micButton.innerText = "🎤 Speak";
+                micButton.classList.remove("recording");
+            }
+        }
+
+
+        // -----------------------------------------
+        // SEND AUDIO TO SARVAM
+        // -----------------------------------------
+
+        async function sendAudioToServer(audioBlob) {
+
+            const status =
+                document.getElementById("status");
+
+            const queryBox =
+                document.getElementById("query");
+
+            try {
+
+                status.innerText =
+                    "🎧 మీ వాయిస్‌ను టెక్స్ట్‌గా మార్చుతోంది...";
+
+                status.className = "status loading";
+
+                const formData = new FormData();
+
+                formData.append(
+                    "file",
+                    audioBlob,
+                    "voice.webm"
+                );
+
+                const response = await fetch(
+                    "http://127.0.0.1:8000/transcribe",
+                    {
+                        method: "POST",
+                        body: formData
+                    }
+                );
+
+                if (!response.ok) {
+                    throw new Error("Transcription request failed");
+                }
+
+                const data = await response.json();
+
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+
+                queryBox.value =
+                    data.transcript || "";
+
+                status.innerText =
+                    "✅ వాయిస్ టెక్స్ట్‌గా మార్చబడింది. ఇప్పుడు Search నొక్కండి.";
+
+                status.className = "status success";
+
+            } catch (error) {
+
+                console.error(error);
+
+                status.innerText =
+                    "వాయిస్‌ను టెక్స్ట్‌గా మార్చడంలో సమస్య వచ్చింది.";
+
+                status.className = "status error";
+            }
+        }
+
+
+        // -----------------------------------------
+        // RAG SEARCH
+        // -----------------------------------------
+
+        async function searchData() {
+
+            const queryBox =
+                document.getElementById("query");
+
+            const button =
+                document.getElementById("searchButton");
+
+            const status =
+                document.getElementById("status");
+
+            const resultsDiv =
+                document.getElementById("results");
+
+            const query =
+                queryBox.value.trim();
+
+            if (!query) {
+
+                status.innerHTML =
+                    "దయచేసి మీ ప్రశ్నను నమోదు చేయండి.";
+
+                status.className =
+                    "status error";
+
+                resultsDiv.innerHTML = "";
+
+                return;
+            }
+
+            button.disabled = true;
+            button.innerText = "Searching...";
+
+            status.innerHTML =
+                "మీ ప్రశ్నకు సంబంధించిన సమాచారాన్ని వెతుకుతోంది...";
+
+            status.className =
+                "status loading";
+
+            resultsDiv.innerHTML = "";
+
+            try {
+
+                const response = await fetch(
+                    "http://127.0.0.1:8000/search",
+                    {
+                        method: "POST",
+
+                        headers: {
+                            "Content-Type":
+                                "application/json"
+                        },
+
+                        body: JSON.stringify({
+                            query: query
+                        })
+                    }
+                );
+
+                if (!response.ok) {
+                    throw new Error(
+                        "API request failed"
+                    );
+                }
+
+                const data =
+                    await response.json();
+
+                status.innerHTML = "";
+
+                let html = "";
+
+                // ---------------------------------
+                // ANSWER
+                // ---------------------------------
+
+                if (data.answer) {
+
+                    html += `
+                        <div class="answer-card">
+
+                            <div class="answer-title">
+                                సమాధానం
+                            </div>
+
+                            <div class="answer-text">
+                                ${escapeHtml(data.answer)}
+                            </div>
+
+                        </div>
+                    `;
+                }
+
+
+                // ---------------------------------
+                // RETRIEVED RESULTS
+                // ---------------------------------
+
+                if (
+                    data.results &&
+                    data.results.length > 0
+                ) {
+
+                    html += `
+                        <div class="results-title">
+                            సంబంధిత సమాచారం
+                        </div>
+                    `;
+
+                    data.results.forEach(
+                        (result, index) => {
+
+                            html += `
+                                <div class="result-card">
+
+                                    <div class="result-number">
+                                        సమాచారం ${index + 1}
+                                    </div>
+
+                                    <div class="result-text">
+                                        ${escapeHtml(result.text)}
+                                    </div>
+
+                                </div>
+                            `;
+
+                        }
+                    );
+
+                }
+
+                if (!html) {
+
+                    html = `
+                        <div class="empty">
+                            సంబంధిత సమాచారం కనుగొనబడలేదు.
+                        </div>
+                    `;
+                }
+
+                resultsDiv.innerHTML = html;
+
+            } catch (error) {
+
+                console.error(error);
+
+                status.innerHTML =
+                    "API కనెక్షన్ విఫలమైంది. FastAPI నడుస్తుందో లేదో తనిఖీ చేయండి.";
+
+                status.className =
+                    "status error";
+
+            } finally {
+
+                button.disabled = false;
+                button.innerText = "Search";
+
+            }
+        }
+
+
+        // -----------------------------------------
+        // HTML SAFETY
+        // -----------------------------------------
+
+        function escapeHtml(text) {
+
+            const div =
+                document.createElement("div");
+
+            div.textContent =
+                text;
+
+            return div.innerHTML;
+        }
+
+
+        // Ctrl + Enter = Search
+
+        document
+            .getElementById("query")
+            .addEventListener(
+                "keydown",
+                function(event) {
+
+                    if (
+                        event.key === "Enter" &&
+                        event.ctrlKey
+                    ) {
+
+                        searchData();
+
+                    }
+
+                }
+            );
+
+    </script>
+
+</body>
+
+</html>
